@@ -348,6 +348,31 @@ echo "  Honey Scraper Update Script"
 echo "========================================"
 echo ""
 
+# Pull latest changes FIRST (including update.sh and install.sh)
+if [[ -d .git ]]; then
+    echo "Pulling latest changes from git..."
+    
+    # Stash any local changes to avoid conflicts
+    if ! git diff-index --quiet HEAD --; then
+        echo "⚠ Local changes detected, stashing..."
+        git stash
+        STASHED=1
+    fi
+    
+    # Pull updates
+    git pull
+    echo "✓ Git pull complete"
+    echo "✓ Scripts updated (install.sh, update.sh, etc.)"
+    
+    # Check if update.sh itself was updated
+    if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q "update.sh"; then
+        echo ""
+        echo "⚠ update.sh was updated! Re-running with new version..."
+        sleep 2
+        exec "$0" "$@"
+    fi
+fi
+
 # Stop services
 echo "Stopping services..."
 sudo systemctl stop honey-scraper 2>/dev/null || true
@@ -359,13 +384,6 @@ echo "Backing up database..."
 if [[ -f honey_stores.db ]]; then
     cp honey_stores.db "honey_stores.db.backup.$(date +%Y%m%d_%H%M%S)"
     echo "✓ Database backed up"
-fi
-
-# Pull latest changes if git repo
-if [[ -d .git ]]; then
-    echo "Pulling latest changes from git..."
-    git pull
-    echo "✓ Git pull complete"
 fi
 
 # Update database schema
