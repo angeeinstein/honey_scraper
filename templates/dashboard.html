@@ -250,11 +250,12 @@
         .modal-content {
             background: white;
             border-radius: 10px;
-            padding: 30px;
+            padding: 0;
             max-width: 800px;
             max-height: 80vh;
             overflow-y: auto;
             width: 90%;
+            position: relative;
         }
 
         .modal-header {
@@ -262,12 +263,34 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            padding: 30px 30px 0 30px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            border-radius: 10px 10px 0 0;
         }
 
         .modal-close {
             font-size: 1.5em;
             cursor: pointer;
             color: #666;
+            background: white;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        
+        .modal-close:hover {
+            background: #f0f0f0;
+        }
+        
+        .modal-body {
+            padding: 0 30px 30px 30px;
         }
 
         .coupon-code {
@@ -526,6 +549,34 @@
         details[open] summary {
             border-bottom: 2px solid #e0e0e0;
         }
+        
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 20px;
+        }
+        
+        .sortable:hover {
+            background: #f5f5f5;
+        }
+        
+        .sort-icon {
+            position: absolute;
+            right: 5px;
+            color: #999;
+            font-size: 0.8em;
+        }
+        
+        .sort-icon.asc::after {
+            content: '▲';
+            color: #667eea;
+        }
+        
+        .sort-icon.desc::after {
+            content: '▼';
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -588,6 +639,18 @@
                     </div>
                 </div>
             </div>
+            
+            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 6px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">⏱️ Request Delay (seconds):</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="number" id="delayInput" value="0.5" min="0" max="10" step="0.1" 
+                           style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button class="btn" onclick="updateDelay()" style="margin: 0;">Update Delay</button>
+                </div>
+                <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                    Lower = faster (risk of rate limiting), Higher = slower (safer). Updates live scraper.
+                </div>
+            </div>
 
             <div style="margin-top: 20px;">
                 <button class="btn btn-success" onclick="showStartModal()">▶️ Start Scraping</button>
@@ -623,11 +686,11 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Domain</th>
-                            <th>Country</th>
-                            <th>Shoppers (30d)</th>
-                            <th>Coupons</th>
+                            <th class="sortable" onclick="sortTable('name')">Name <span class="sort-icon" id="sort-name"></span></th>
+                            <th class="sortable" onclick="sortTable('domain')">Domain <span class="sort-icon" id="sort-domain"></span></th>
+                            <th class="sortable" onclick="sortTable('country')">Country <span class="sort-icon" id="sort-country"></span></th>
+                            <th class="sortable" onclick="sortTable('shoppers_30d')">Shoppers (30d) <span class="sort-icon" id="sort-shoppers_30d"></span></th>
+                            <th class="sortable" onclick="sortTable('coupon_count')">Coupons <span class="sort-icon" id="sort-coupon_count"></span></th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -717,6 +780,11 @@
                     document.getElementById('scraperStatus').textContent = isRunning ? 'running' : 'stopped';
                     document.getElementById('scraperStatus').className = 'status-badge ' + (isRunning ? 'status-running' : 'status-stopped');
                     document.getElementById('stopBtn').disabled = !isRunning;
+                    
+                    // Update delay display
+                    if (status.delay !== undefined) {
+                        document.getElementById('delayInput').value = status.delay;
+                    }
                     
                     if (isRunning) {
                         document.getElementById('progressContainer').style.display = 'block';
@@ -839,6 +907,12 @@
                 active_only: activeOnly
             });
             
+            // Add sorting if active
+            if (currentSort.column) {
+                params.append('sort_by', currentSort.column);
+                params.append('sort_dir', currentSort.direction);
+            }
+            
             try {
                 const response = await fetch('/api/stores?' + params);
                 const data = await response.json();
@@ -854,6 +928,38 @@
 
         function renderStoresTable(stores) {
             const tbody = document.getElementById('storesTable');
+            
+            if (stores.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No stores found</td></tr>';
+                return;
+            }
+            
+            // Sort stores client-side if sort is active
+            if (currentSort.column) {
+                stores.sort((a, b) => {
+                    let aVal = a[currentSort.column];
+                    let bVal = b[currentSort.column];
+                    
+                    // Handle null/undefined
+                    if (aVal == null) aVal = '';
+                    if (bVal == null) bVal = '';
+                    
+                    // Numeric comparison for numbers
+                    if (typeof aVal === 'number' && typeof bVal === 'number') {
+                        return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    }
+                    
+                    // String comparison
+                    aVal = String(aVal).toLowerCase();
+                    bVal = String(bVal).toLowerCase();
+                    
+                    if (currentSort.direction === 'asc') {
+                        return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                    } else {
+                        return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                    }
+                });
+            }
             
             if (stores.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px;">No stores found</td></tr>';
@@ -893,6 +999,61 @@
         function debounceSearch() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => loadStores(1), 500);
+        }
+        
+        // Sorting functionality
+        let currentSort = { column: null, direction: 'asc' };
+        
+        function sortTable(column) {
+            // Toggle direction if clicking same column
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            // Update sort icons
+            document.querySelectorAll('.sort-icon').forEach(icon => {
+                icon.className = 'sort-icon';
+            });
+            document.getElementById(`sort-${column}`).className = `sort-icon ${currentSort.direction}`;
+            
+            // Reload with sorting
+            loadStores(1);
+        }
+        
+        // Delay update functionality
+        async function updateDelay() {
+            const delay = parseFloat(document.getElementById('delayInput').value);
+            
+            if (isNaN(delay) || delay < 0) {
+                showAlert('Please enter a valid delay (0 or greater)', 'error');
+                return;
+            }
+            
+            if (delay > 10) {
+                showAlert('Delay must be 10 seconds or less', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/scraper/delay', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ delay: delay })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error updating delay: ' + error.message, 'error');
+            }
         }
 
         function showStartModal() {
@@ -978,7 +1139,7 @@
                         return date.toLocaleString();
                     };
                     
-                    let html = `
+                    let html = `<div class="modal-body">
                         <div class="detail-section">
                             <h3>Basic Information</h3>
                             <p><strong>Store ID:</strong> ${store.store_id}</p>
@@ -1040,9 +1201,11 @@
                         </div>
                     `;
                     
+                    // Add coupons section at the top (before other sections)
+                    let couponsHtml = '';
                     if (coupons.length > 0) {
-                        html += `<div style="margin-bottom: 20px;">
-                            <h3>Coupons (${coupons.length})</h3>`;
+                        couponsHtml = `<div class="detail-section" style="background: #e8f5e9; border-left-color: #4caf50;">
+                            <h3 style="color: #4caf50;">🎟️ Coupons (${coupons.length})</h3>`;
                         coupons.forEach(coupon => {
                             const successRate = coupon.usage_report_count > 0 
                                 ? Math.round((coupon.worked_count / coupon.usage_report_count) * 100) 
@@ -1120,10 +1283,13 @@
                                 </div>
                             </div>`;
                         });
-                        html += '</div>';
+                        couponsHtml += '</div>';
                     } else {
-                        html += '<p style="color: #666; margin: 20px 0;">No coupons available for this store.</p>';
+                        couponsHtml = '<div class="detail-section"><p style="color: #666;">No coupons available for this store.</p></div>';
                     }
+                    
+                    // Insert coupons right after basic info
+                    html = html.replace('</div>', '</div>' + couponsHtml);
                     
                     // Add raw data section
                     html += `
@@ -1145,7 +1311,7 @@
                                 </div>
                             </details>
                         </div>
-                    `;
+                    </div>`;
                     
                     document.getElementById('detailContent').innerHTML = html;
                     document.getElementById('detailModal').classList.add('active');

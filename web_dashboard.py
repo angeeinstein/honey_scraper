@@ -30,7 +30,8 @@ scraper_state = {
     'last_error': None,
     'started_at': None,
     'mode': None,
-    'should_stop': False
+    'should_stop': False,
+    'delay': 0.5
 }
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'honey_stores.db')
@@ -304,6 +305,36 @@ def api_scraper_stop():
     """Stop scraper"""
     update_scraper_state('should_stop', True)
     return jsonify({'success': True, 'message': 'Stop signal sent (scraper will stop after current domain)'})
+
+
+@app.route('/api/scraper/delay', methods=['POST'])
+def api_scraper_delay():
+    """Update scraper delay in real-time"""
+    try:
+        data = request.json
+        delay = float(data.get('delay', 0.5))
+        
+        if delay < 0:
+            return jsonify({'success': False, 'error': 'Delay must be non-negative'}), 400
+        
+        if delay > 10:
+            return jsonify({'success': False, 'error': 'Delay must be 10 seconds or less'}), 400
+        
+        # Update state
+        update_scraper_state('delay', delay)
+        
+        # Update running scraper if active
+        global scraper_instance
+        if scraper_instance:
+            scraper_instance.delay = delay
+        
+        return jsonify({
+            'success': True,
+            'delay': delay,
+            'message': f'Delay updated to {delay}s' + (' (active scraper updated)' if scraper_state['running'] else '')
+        })
+    except (ValueError, TypeError) as e:
+        return jsonify({'success': False, 'error': f'Invalid delay value: {str(e)}'}), 400
 
 
 @app.route('/api/stores')
