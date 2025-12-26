@@ -817,9 +817,10 @@
                     document.getElementById('scraperStatus').className = 'status-badge ' + (isRunning ? 'status-running' : 'status-stopped');
                     document.getElementById('stopBtn').disabled = !isRunning;
                     
-                    // Update delay display
-                    if (status.delay !== undefined) {
-                        document.getElementById('delayInput').value = status.delay;
+                    // Update delay display only if input is not focused
+                    const delayInput = document.getElementById('delayInput');
+                    if (status.delay !== undefined && document.activeElement !== delayInput) {
+                        delayInput.value = status.delay;
                     }
                     
                     if (isRunning) {
