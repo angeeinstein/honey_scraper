@@ -1211,7 +1211,7 @@
                                 ? Math.round((coupon.worked_count / coupon.usage_report_count) * 100) 
                                 : null;
                             
-                            html += `<div class="coupon-item" id="coupon-${coupon.id}">
+                            couponsHtml += `<div class="coupon-item" id="coupon-${coupon.id}">
                                 <div class="coupon-header">
                                     <span class="coupon-code" id="code-${coupon.id}">${coupon.code}</span>
                                     <button class="copy-btn" onclick="copyCouponCode('${coupon.code}', ${coupon.id})">
@@ -1290,6 +1290,56 @@
                     
                     // Insert coupons right after basic info
                     html = html.replace('</div>', '</div>' + couponsHtml);
+                    
+                    // Add remaining sections
+                    html += `
+                        <div class="detail-section">
+                            <h3>📊 Shopper Statistics</h3>
+                            <p><strong>24-hour Shoppers:</strong> ${(store.shoppers_24h || 0).toLocaleString()}</p>
+                            <p><strong>30-day Shoppers:</strong> ${(store.shoppers_30d || 0).toLocaleString()}</p>
+                            <p><strong>Shoppers Change:</strong> ${store.shoppers_change > 0 ? '↑' : store.shoppers_change < 0 ? '↓' : '→'} ${Math.abs(store.shoppers_change || 0).toLocaleString()}</p>
+                            ${store.score ? `<p><strong>Store Score:</strong> ${store.score.toLocaleString()}</p>` : ''}
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>💰 Savings Statistics</h3>
+                            <p><strong>24h Savings Count:</strong> ${(store.num_savings_24h || 0).toLocaleString()}</p>
+                            <p><strong>30d Savings Count:</strong> ${(store.num_savings_30d || 0).toLocaleString()}</p>
+                            <p><strong>Avg 24h Savings:</strong> ${store.avg_savings_24h ? '$' + store.avg_savings_24h.toFixed(2) : 'N/A'}</p>
+                            <p><strong>Avg 30d Savings:</strong> ${store.avg_savings_30d ? '$' + store.avg_savings_30d.toFixed(2) : 'N/A'}</p>
+                            ${store.free_shipping_threshold ? `<p><strong>Free Shipping Threshold:</strong> $${store.free_shipping_threshold.toFixed(2)}</p>` : ''}
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>🕐 Timestamps</h3>
+                            <p><strong>Created:</strong> ${formatDate(store.created)}</p>
+                            <p><strong>Last Updated:</strong> ${formatDate(store.updated)}</p>
+                            ${store.checked ? `<p><strong>Last Checked:</strong> ${formatDate(store.checked)}</p>` : ''}
+                        </div>
+                        
+                        ${store.notes_support || store.notes_monetization || store.notes_worker ? `
+                        <div class="detail-section">
+                            <h3>📝 Notes</h3>
+                            ${store.notes_support ? `<p><strong>Support Notes:</strong> ${store.notes_support}</p>` : ''}
+                            ${store.notes_monetization ? `<p><strong>Monetization Notes:</strong> ${store.notes_monetization}</p>` : ''}
+                            ${store.notes_worker ? `<p><strong>Worker Notes:</strong> ${store.notes_worker}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        ${store.affiliate_url || store.affiliate_restrictions ? `
+                        <div class="detail-section">
+                            <h3>🔗 Affiliate Information</h3>
+                            ${store.affiliate_url ? `<p><strong>Affiliate URL:</strong> <a href="${store.affiliate_url}" target="_blank">${store.affiliate_url}</a></p>` : ''}
+                            ${store.affiliate_restrictions ? `<p><strong>Restrictions:</strong> ${store.affiliate_restrictions}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div class="detail-section">
+                            <h3>⚙️ Technical Settings</h3>
+                            <p><strong>UGC Allowed:</strong> ${store.ugc_allowed ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Force JS Redirect:</strong> ${store.force_js_redirect ? '✅ Yes' : '❌ No'}</p>
+                        </div>
+                    `;
                     
                     // Add raw data section
                     html += `
