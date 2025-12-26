@@ -271,18 +271,45 @@ class HoneyScraper:
         }
         url = f"{self.BASE_URL}/v3?{urlencode(params)}"
         
-        try:
-            time.sleep(self.delay)
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "data" in data and "getPartialURLsByDomain" in data["data"]:
-                return data["data"]["getPartialURLsByDomain"]
-            return []
-        except Exception as e:
-            print(f"Error fetching store IDs for {domain}: {e}")
-            return []
+        max_retries = 3
+        retry_delay = self.delay
+        
+        for attempt in range(max_retries):
+            try:
+                time.sleep(retry_delay)
+                response = self.session.get(url, timeout=30)
+                
+                # Check for rate limiting
+                if response.status_code == 429:
+                    retry_delay *= 2  # Exponential backoff
+                    print(f"  ⚠️ Rate limited. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                    time.sleep(retry_delay)
+                    continue
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                if "data" in data and "getPartialURLsByDomain" in data["data"]:
+                    return data["data"]["getPartialURLsByDomain"]
+                return []
+                
+            except requests.exceptions.Timeout:
+                print(f"  ⚠️ Timeout for {domain}. Retry {attempt + 1}/{max_retries}...")
+                retry_delay *= 1.5
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+            except requests.exceptions.RequestException as e:
+                print(f"  ⚠️ Request error for {domain}: {e}. Retry {attempt + 1}/{max_retries}...")
+                retry_delay *= 1.5
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+            except Exception as e:
+                print(f"Error fetching store IDs for {domain}: {e}")
+                break
+        
+        return []
     
     def get_store_details(self, store_id: str, max_ugc: int = 3, success_count: int = 1) -> Optional[Dict]:
         """
@@ -308,18 +335,45 @@ class HoneyScraper:
         }
         url = f"{self.BASE_URL}/v3?{urlencode(params)}"
         
-        try:
-            time.sleep(self.delay)
-            response = self.session.get(url, timeout=30)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "data" in data and "getStoreById" in data["data"]:
-                return data["data"]["getStoreById"]
-            return None
-        except Exception as e:
-            print(f"Error fetching store details for {store_id}: {e}")
-            return None
+        max_retries = 3
+        retry_delay = self.delay
+        
+        for attempt in range(max_retries):
+            try:
+                time.sleep(retry_delay)
+                response = self.session.get(url, timeout=30)
+                
+                # Check for rate limiting
+                if response.status_code == 429:
+                    retry_delay *= 2  # Exponential backoff
+                    print(f"    ⚠️ Rate limited. Waiting {retry_delay}s before retry {attempt + 1}/{max_retries}...")
+                    time.sleep(retry_delay)
+                    continue
+                
+                response.raise_for_status()
+                data = response.json()
+                
+                if "data" in data and "getStoreById" in data["data"]:
+                    return data["data"]["getStoreById"]
+                return None
+                
+            except requests.exceptions.Timeout:
+                print(f"    ⚠️ Timeout for store {store_id}. Retry {attempt + 1}/{max_retries}...")
+                retry_delay *= 1.5
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+            except requests.exceptions.RequestException as e:
+                print(f"    ⚠️ Request error for store {store_id}: {e}. Retry {attempt + 1}/{max_retries}...")
+                retry_delay *= 1.5
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+            except Exception as e:
+                print(f"Error fetching store details for {store_id}: {e}")
+                break
+        
+        return None
     
     def scrape_all_stores(self, max_domains: Optional[int] = None, skip_existing: bool = True):
         """

@@ -409,7 +409,13 @@
                     <div>Current Domain: <strong id="currentDomain">-</strong></div>
                     <div>Domains: <strong id="domainsProgress">0 / 0</strong></div>
                     <div>Stores Saved: <strong id="storesSaved">0</strong></div>
-                    <div>Errors: <strong id="errorsCount">0</strong></div>
+                    <div>Errors: <strong id="errorsCount" style="color: #e74c3c;">0</strong></div>
+                    <div id="consecutiveErrorsDiv" style="display: none; color: #e74c3c; font-weight: bold; margin-top: 5px;">
+                        ⚠️ Consecutive Errors: <span id="consecutiveErrors">0</span> (May indicate rate limiting or blocking)
+                    </div>
+                    <div id="lastErrorDiv" style="display: none; color: #e74c3c; margin-top: 5px; font-size: 0.9em;">
+                        Last Error: <span id="lastError">-</span>
+                    </div>
                 </div>
             </div>
 
@@ -521,6 +527,9 @@
             startStatusPolling();
         });
 
+        let lastStoreCount = 0;
+        let lastErrorCount = 0;
+
         function startStatusPolling() {
             updateScraperStatus();
             statusInterval = setInterval(updateScraperStatus, 2000);
@@ -547,12 +556,55 @@
                         document.getElementById('storesSaved').textContent = status.stores_saved;
                         document.getElementById('errorsCount').textContent = status.errors;
                         
+                        // Show consecutive errors if > 0
+                        const consecErrors = status.consecutive_errors || 0;
+                        if (consecErrors > 0) {
+                            document.getElementById('consecutiveErrorsDiv').style.display = 'block';
+                            document.getElementById('consecutiveErrors').textContent = consecErrors;
+                        } else {
+                            document.getElementById('consecutiveErrorsDiv').style.display = 'none';
+                        }
+                        
+                        // Show last error if exists
+                        if (status.last_error) {
+                            document.getElementById('lastErrorDiv').style.display = 'block';
+                            document.getElementById('lastError').textContent = status.last_error;
+                        } else {
+                            document.getElementById('lastErrorDiv').style.display = 'none';
+                        }
+                        
                         const progress = status.total_domains > 0 ? (status.domains_processed / status.total_domains * 100) : 0;
                         document.getElementById('progressBar').style.width = progress + '%';
                         document.getElementById('progressBar').textContent = Math.round(progress) + '%';
+                        
+                        // Auto-refresh stats if stores or errors changed
+                        if (status.stores_saved !== lastStoreCount || status.errors !== lastErrorCount) {
+                            lastStoreCount = status.stores_saved;
+                            lastErrorCount = status.errors;
+                            refreshStats();
+                            
+                            // Reload table if on first page
+                            if (currentPage === 1) {
+                                loadStores(1);
+                            }
+                        }
+                        
+                        // Show error alerts
+                        if (status.last_error && status.errors > lastErrorCount) {
+                            showAlert('Scraping error: ' + status.last_error, 'error');
+                        }
+                        
+                        // Check for consecutive errors (potential block)
+                        if (status.consecutive_errors >= 5) {
+                            showAlert(`⚠️ ${status.consecutive_errors} consecutive errors detected. Possible rate limit or block.`, 'error');
+                        }
                     } else {
                         document.getElementById('progressContainer').style.display = 'none';
                         document.getElementById('scraperInfo').textContent = '';
+                        
+                        // Refresh stats when scraper stops
+                        refreshStats();
+                        loadStores(currentPage);
                     }
                 }
             } catch (error) {

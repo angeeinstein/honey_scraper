@@ -26,8 +26,11 @@ scraper_state = {
     'total_domains': 0,
     'stores_saved': 0,
     'errors': 0,
+    'consecutive_errors': 0,
+    'last_error': None,
     'started_at': None,
-    'mode': None
+    'mode': None,
+    'should_stop': False
 }
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'honey_stores.db')
@@ -46,13 +49,54 @@ def update_scraper_state(key: str, value):
 
 
 class MonitoredScraper(HoneyScraper):
-    """Scraper with progress monitoring"""
+    """Scraper with progress monitoring and error handling"""
+    
+    def get_store_ids_by_domain(self, domain: str):
+        """Override to add error handling"""
+        try:
+            result = super().get_store_ids_by_domain(domain)
+            # Reset consecutive errors on success
+            if result:
+                update_scraper_state('consecutive_errors', 0)
+            return result
+        except Exception as e:
+            update_scraper_state('last_error', str(e))
+            consecutive = scraper_state.get('consecutive_errors', 0) + 1
+            update_scraper_state('consecutive_errors', consecutive)
+            
+            # Stop if too many consecutive errors (likely blocked)
+            if consecutive >= 10:
+                print(f"⚠️ CRITICAL: {consecutive} consecutive errors. Stopping to prevent ban.")
+                update_scraper_state('should_stop', True)
+            return []
+    
+    def get_store_details(self, store_id: str, max_ugc: int = 3, success_count: int = 1):
+        """Override to add error handling"""
+        try:
+            result = super().get_store_details(store_id, max_ugc, success_count)
+            # Reset consecutive errors on success
+            if result:
+                update_scraper_state('consecutive_errors', 0)
+            return result
+        except Exception as e:
+            update_scraper_state('last_error', str(e))
+            consecutive = scraper_state.get('consecutive_errors', 0) + 1
+            update_scraper_state('consecutive_errors', consecutive)
+            
+            # Stop if too many consecutive errors
+            if consecutive >= 10:
+                print(f"⚠️ CRITICAL: {consecutive} consecutive errors. Stopping to prevent ban.")
+                update_scraper_state('should_stop', True)
+            return None
     
     def scrape_all_stores(self, max_domains: Optional[int] = None, skip_existing: bool = True):
-        """Scrape with progress updates"""
+        """Scrape with progress updates and error handling"""
         update_scraper_state('running', True)
+        update_scraper_state('should_stop', False)
         update_scraper_state('started_at', datetime.now().isoformat())
         update_scraper_state('mode', f"{'Resume' if skip_existing else 'Fresh'} - {'All domains' if not max_domains else f'{max_domains} domains'}")
+        update_scraper_state('consecutive_errors', 0)
+        update_scraper_state('last_error', None)
         
         try:
             print("Starting monitored scrape...")
@@ -75,6 +119,11 @@ class MonitoredScraper(HoneyScraper):
             
             # Process each domain
             for i, domain in enumerate(domains, 1):
+                # Check for stop signal
+                if scraper_state.get('should_stop', False):
+                    print("\n⚠️ Stop signal received. Halting scrape.")
+                    break
+                
                 update_scraper_state('current_domain', domain)
                 update_scraper_state('domains_processed', i)
                 
@@ -96,6 +145,10 @@ class MonitoredScraper(HoneyScraper):
                 
                 # Get details for each store
                 for mapping in store_mappings:
+                    # Check for stop signal
+                    if scraper_state.get('should_stop', False):
+                        break
+                    
                     store_id = mapping.get("storeId")
                     partial_url = mapping.get("partialURL")
                     
@@ -117,14 +170,27 @@ class MonitoredScraper(HoneyScraper):
                 
                 # Mark domain as scraped
                 self._mark_domain_scraped(domain, domain_store_count)
+                
+                # Check if we should stop due to errors
+                if scraper_state.get('should_stop', False):
+                    print("\n⚠️ Too many errors. Stopping to prevent ban.")
+                    break
             
             elapsed = datetime.now() - start_time
             print(f"\nScraping complete! Processed: {processed}, Skipped: {skipped}, Errors: {errors}")
             print(f"Time elapsed: {elapsed}")
             
+            if errors > 0:
+                print(f"\n⚠️ Total errors: {errors}")
+                if scraper_state.get('consecutive_errors', 0) >= 5:
+                    print("⚠️ WARNING: Multiple consecutive errors detected.")
+                    print("   This may indicate rate limiting or IP blocking.")
+                    print("   Consider increasing delay or waiting before resuming.")
+            
         finally:
             update_scraper_state('running', False)
             update_scraper_state('current_domain', None)
+            update_scraper_state('should_stop', False)
 
 
 @app.route('/')
@@ -236,10 +302,8 @@ def api_scraper_start():
 @app.route('/api/scraper/stop', methods=['POST'])
 def api_scraper_stop():
     """Stop scraper"""
-    # Note: Graceful stop is difficult with threads
-    # This just updates the state
-    update_scraper_state('running', False)
-    return jsonify({'success': True, 'message': 'Stop signal sent (may take a moment)'})
+    update_scraper_state('should_stop', True)
+    return jsonify({'success': True, 'message': 'Stop signal sent (scraper will stop after current domain)'})
 
 
 @app.route('/api/stores')
