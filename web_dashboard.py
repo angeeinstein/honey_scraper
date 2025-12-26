@@ -388,16 +388,16 @@ def api_stores():
         params = []
         
         if search:
-            where_clauses.append("(name LIKE ? OR domain LIKE ? OR url LIKE ?)")
+            where_clauses.append("(s.name LIKE ? OR s.domain LIKE ? OR s.url LIKE ?)")
             search_param = f"%{search}%"
             params.extend([search_param, search_param, search_param])
         
         if country:
-            where_clauses.append("country = ?")
+            where_clauses.append("s.country = ?")
             params.append(country)
         
         if active_only:
-            where_clauses.append("active = 1")
+            where_clauses.append("s.active = 1")
         
         where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
         
