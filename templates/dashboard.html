@@ -506,14 +506,15 @@
         }
 
         .input-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .input-group label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: #333;
             font-weight: 500;
+            font-size: 0.95em;
         }
 
         .input-group input,
@@ -522,6 +523,13 @@
             padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
+            font-size: 1em;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
         }
 
         .link {
@@ -689,7 +697,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <button class="btn btn-success" onclick="showStartModal()">▶️ Start Scraping</button>
+                <button class="btn btn-success" id="startScrapingBtn" onclick="showStartModal()">▶️ Start Scraping</button>
                 <button class="btn btn-danger" id="stopBtn" onclick="stopScraper()" disabled>⏹️ Stop</button>
                 <button class="btn btn-secondary" onclick="refreshStats()">🔄 Refresh Stats</button>
                 <button class="btn btn-secondary" onclick="exportData('csv')">📥 Export CSV</button>
@@ -748,27 +756,31 @@
                 <h2>Start Scraping</h2>
                 <span class="modal-close" onclick="closeModal('startModal')">&times;</span>
             </div>
-            <div class="input-group">
-                <label>Scraping Mode</label>
-                <select id="scrapingMode" onchange="toggleDomainLimit()">
-                    <option value="test">Test Mode (10 domains)</option>
-                    <option value="limited">Limited (custom amount)</option>
-                    <option value="resume">Resume (continue from where stopped)</option>
-                    <option value="full">Full Scrape (all ~178k domains)</option>
-                </select>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Scraping Mode</label>
+                    <select id="scrapingMode" onchange="toggleDomainLimit()">
+                        <option value="test">Test Mode (10 domains)</option>
+                        <option value="limited">Limited (custom amount)</option>
+                        <option value="resume">Resume (continue from where stopped)</option>
+                        <option value="full">Full Scrape (all ~178k domains)</option>
+                    </select>
+                </div>
+                <div class="input-group" id="domainLimitGroup" style="display: none;">
+                    <label>Number of Domains</label>
+                    <input type="number" id="domainLimit" value="100" min="1">
+                </div>
+                <div class="input-group">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="skipExisting" checked>
+                        <span>Skip already scraped domains</span>
+                    </label>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 25px;">
+                    <button class="btn btn-success" onclick="startScraper()" style="flex: 1; margin: 0;">Start</button>
+                    <button class="btn btn-secondary" onclick="closeModal('startModal')" style="flex: 1; margin: 0;">Cancel</button>
+                </div>
             </div>
-            <div class="input-group" id="domainLimitGroup" style="display: none;">
-                <label>Number of Domains</label>
-                <input type="number" id="domainLimit" value="100" min="1">
-            </div>
-            <div class="input-group">
-                <label style="display: flex; align-items: center; gap: 5px;">
-                    <input type="checkbox" id="skipExisting" checked>
-                    Skip already scraped domains
-                </label>
-            </div>
-            <button class="btn btn-success" onclick="startScraper()">Start</button>
-            <button class="btn btn-secondary" onclick="closeModal('startModal')">Cancel</button>
         </div>
     </div>
 
@@ -816,6 +828,7 @@
                     document.getElementById('scraperStatus').textContent = isRunning ? 'running' : 'stopped';
                     document.getElementById('scraperStatus').className = 'status-badge ' + (isRunning ? 'status-running' : 'status-stopped');
                     document.getElementById('stopBtn').disabled = !isRunning;
+                    document.getElementById('startScrapingBtn').disabled = isRunning;
                     
                     // Update delay display only if input is not focused
                     const delayInput = document.getElementById('delayInput');
