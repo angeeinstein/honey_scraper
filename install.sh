@@ -343,20 +343,61 @@ EOF
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "Updating Honey Scraper..."
+echo "========================================"
+echo "  Honey Scraper Update Script"
+echo "========================================"
+echo ""
+
+# Stop services
+echo "Stopping services..."
+sudo systemctl stop honey-scraper 2>/dev/null || true
+sudo systemctl stop honey-scraper-web 2>/dev/null || true
+echo "✓ Services stopped"
+
+# Backup database
+echo "Backing up database..."
+if [[ -f honey_stores.db ]]; then
+    cp honey_stores.db "honey_stores.db.backup.$(date +%Y%m%d_%H%M%S)"
+    echo "✓ Database backed up"
+fi
 
 # Pull latest changes if git repo
 if [[ -d .git ]]; then
     echo "Pulling latest changes from git..."
     git pull
+    echo "✓ Git pull complete"
 fi
+
+# Update database schema
+echo "Updating database schema..."
+source venv/bin/activate
+python3 -c "
+from scraper import HoneyScraper
+scraper = HoneyScraper(db_path='honey_stores.db')
+print('Database schema updated')
+" 2>/dev/null || echo "⚠ Schema update skipped"
 
 # Update Python dependencies
 echo "Updating Python dependencies..."
-source venv/bin/activate
-pip install --upgrade -r requirements.txt
+pip install --upgrade -r requirements.txt -q
+echo "✓ Dependencies updated"
 
-echo "Update complete!"
+# Restart services
+echo ""
+read -p "Restart services? (y/N): " -n 1 -r
+echo ""
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    sudo systemctl start honey-scraper
+    sudo systemctl start honey-scraper-web
+    echo "✓ Services restarted"
+    echo ""
+    echo "Check status with:"
+    echo "  sudo systemctl status honey-scraper"
+    echo "  sudo systemctl status honey-scraper-web"
+fi
+
+echo ""
+echo "✓ Update complete!"
 EOF
     
     chmod +x "$update_script"
@@ -512,8 +553,10 @@ EOF
 update_existing_installation() {
     print_header "Updating Existing Installation"
     
-    print_info "Stopping service if running..."
+    print_info "Stopping services if running..."
     sudo systemctl stop $SERVICE_NAME 2>/dev/null || true
+    sudo systemctl stop "${SERVICE_NAME}-web" 2>/dev/null || true
+    print_success "Services stopped"
     
     print_info "Backing up database..."
     if [[ -f "$INSTALL_DIR/honey_stores.db" ]]; then
@@ -521,12 +564,25 @@ update_existing_installation() {
         print_success "Database backed up"
     fi
     
+    print_info "Updating database schema..."
+    # Run Python to update database schema (creates missing tables/columns)
+    "$INSTALL_DIR/venv/bin/python3" -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR')
+from scraper import HoneyScraper
+scraper = HoneyScraper(db_path='$INSTALL_DIR/honey_stores.db')
+print('Database schema updated')
+" 2>/dev/null || print_warning "Database schema update skipped (scraper.py may have issues)"
+    print_success "Database schema updated"
+    
     print_info "Updating Python dependencies..."
     "$INSTALL_DIR/venv/bin/pip" install --upgrade -r "$INSTALL_DIR/requirements.txt" -q
     print_success "Dependencies updated"
     
-    print_info "Recreating systemd service..."
+    print_info "Recreating systemd services..."
     create_systemd_service
+    create_web_service
+    print_success "Services recreated"
     
     print_info "Recreating helper scripts..."
     create_run_script
@@ -535,11 +591,15 @@ update_existing_installation() {
     
     print_success "Update complete!"
     
-    read -p "Start the service now? (y/N): " -n 1 -r
+    read -p "Start the services now? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         sudo systemctl start $SERVICE_NAME
-        print_success "Service started"
+        sudo systemctl start "${SERVICE_NAME}-web"
+        print_success "Services started"
+        print_info "Scraper service: sudo systemctl status $SERVICE_NAME"
+        print_info "Web dashboard: sudo systemctl status ${SERVICE_NAME}-web"
+        print_info "Web URL: http://$(hostname -I | awk '{print $1}'):5000"
     fi
 }
 
