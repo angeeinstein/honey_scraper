@@ -307,9 +307,18 @@
         .coupon-item {
             margin: 15px 0;
             padding: 15px;
-            background: #f8f9fa;
+            background: white;
             border-radius: 8px;
+            border: 1px solid #e0e0e0;
             border-left: 4px solid #667eea;
+        }
+        
+        .coupon-item:first-child {
+            margin-top: 15px;
+        }
+        
+        .coupon-item:last-child {
+            margin-bottom: 0;
         }
         
         .coupon-header {
@@ -391,15 +400,22 @@
         }
         
         .report-form {
-            margin-top: 10px;
+            margin-top: 15px;
             padding: 15px;
-            background: white;
-            border-radius: 6px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             display: none;
         }
         
         .report-form.active {
             display: block;
+        }
+        
+        .report-form h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
         }
         
         .form-row {
@@ -418,19 +434,24 @@
         }
         
         .usage-report {
-            padding: 10px;
+            padding: 12px;
             background: white;
-            border-radius: 4px;
-            margin: 5px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin: 10px 0;
             font-size: 0.85em;
         }
         
+        .usage-report:first-child {
+            margin-top: 0;
+        }
+        
         .report-success {
-            border-left: 3px solid #27ae60;
+            border-left: 4px solid #27ae60;
         }
         
         .report-fail {
-            border-left: 3px solid #e74c3c;
+            border-left: 4px solid #e74c3c;
         }
 
         .country-list {
@@ -512,15 +533,16 @@
         
         .detail-section {
             background: #f8f9fa;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border-left: 4px solid #667eea;
         }
         
         .detail-section h3 {
             color: #667eea;
             margin-bottom: 15px;
+            margin-top: 0;
             font-size: 1.2em;
         }
         
@@ -529,17 +551,23 @@
             line-height: 1.6;
         }
         
+        .detail-section:first-of-type {
+            margin-top: 0;
+        }
+        
         details {
             background: #fff;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
             padding: 0;
+            overflow: hidden;
         }
         
         details summary {
             user-select: none;
             outline: none;
             transition: background 0.2s;
+            border-radius: 6px;
         }
         
         details summary:hover {
@@ -548,6 +576,11 @@
         
         details[open] summary {
             border-bottom: 2px solid #e0e0e0;
+            border-radius: 6px 6px 0 0;
+        }
+        
+        details > div {
+            padding: 15px;
         }
         
         .sortable {
