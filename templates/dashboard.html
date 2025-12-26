@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Honey Scraper Dashboard</title>
     <style>
         * {
@@ -932,6 +935,8 @@
             const country = document.getElementById('countryFilter').value;
             const activeOnly = document.getElementById('activeFilter').checked;
             
+            console.log('Loading stores - Page:', page, 'Search:', search, 'Country:', country, 'Active:', activeOnly);
+            
             const params = new URLSearchParams({
                 page: page,
                 per_page: 50,
@@ -950,11 +955,17 @@
                 const response = await fetch('/api/stores?' + params);
                 const data = await response.json();
                 
+                console.log('API response:', data);
+                
                 if (data.success) {
+                    console.log('Rendering', data.stores.length, 'stores');
                     renderStoresTable(data.stores);
                     renderPagination(data.pagination);
+                } else {
+                    showAlert('Error from API: ' + (data.error || 'Unknown error'), 'error');
                 }
             } catch (error) {
+                console.error('Error loading stores:', error);
                 showAlert('Error loading stores: ' + error.message, 'error');
             }
         }
@@ -1031,7 +1042,11 @@
 
         function debounceSearch() {
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => loadStores(1), 500);
+            searchTimeout = setTimeout(() => {
+                console.log('Search triggered with value:', document.getElementById('searchInput').value);
+                currentPage = 1;
+                loadStores(1);
+            }, 500);
         }
         
         // Sorting functionality

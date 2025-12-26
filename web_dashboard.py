@@ -3,7 +3,7 @@ Honey Scraper Web Dashboard
 Flask web application for monitoring and controlling the scraper
 """
 
-from flask import Flask, render_template, jsonify, request, send_file
+from flask import Flask, render_template, jsonify, request, send_file, make_response
 from scraper import HoneyScraper
 import sqlite3
 import json
@@ -107,10 +107,23 @@ class MonitoredScraper(HoneyScraper):
             domains = self.get_supported_domains()
             if not domains:
                 print("No domains found. Exiting.")
+                update_scraper_state('last_error', 'No domains found in domains list')
                 return
+            
+            print(f"Total domains available: {len(domains)}")
             
             if max_domains:
                 domains = domains[:max_domains]
+                print(f"Limited to {max_domains} domains")
+            
+            if skip_existing:
+                # Count how many will be skipped
+                already_scraped = sum(1 for d in domains if self._domain_scraped(d))
+                print(f"Already scraped: {already_scraped}/{len(domains)} domains")
+                if already_scraped == len(domains):
+                    print("⚠️ All selected domains already scraped!")
+                    update_scraper_state('last_error', 'All selected domains already scraped')
+                    return
             
             update_scraper_state('total_domains', len(domains))
             
@@ -130,6 +143,7 @@ class MonitoredScraper(HoneyScraper):
                 
                 # Skip if already scraped
                 if skip_existing and self._domain_scraped(domain):
+                    print(f"  ⏭️  Skipping {domain} (already scraped)")
                     skipped += 1
                     continue
                 
@@ -197,7 +211,11 @@ class MonitoredScraper(HoneyScraper):
 @app.route('/')
 def index():
     """Main dashboard page"""
-    return render_template('dashboard.html')
+    response = make_response(render_template('dashboard.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/api/stats')
@@ -289,7 +307,22 @@ def api_scraper_start():
             return jsonify({'success': False, 'error': 'Invalid max_domains value'}), 400
     
     # Start scraper in background thread
-    scraper_instance = MonitoredScraper(delay=0.5, db_path=DB_PATH)
+    delay = scraper_state.get('delay', 0.5)
+    scraper_instance = MonitoredScraper(delay=delay, db_path=DB_PATH)
+    
+    # Determine mode for display
+    if max_domains:
+        mode = f"Limited ({max_domains} domains)"
+    else:
+        mode = "Full scrape"
+    
+    if skip_existing:
+        mode += " - Skip existing"
+    else:
+        mode += " - Fresh"
+    
+    update_scraper_state('mode', mode)
+    
     scraper_thread = threading.Thread(
         target=scraper_instance.scrape_all_stores,
         args=(max_domains, skip_existing),
@@ -297,7 +330,7 @@ def api_scraper_start():
     )
     scraper_thread.start()
     
-    return jsonify({'success': True, 'message': 'Scraper started'})
+    return jsonify({'success': True, 'message': f'Scraper started: {mode}'})
 
 
 @app.route('/api/scraper/stop', methods=['POST'])
