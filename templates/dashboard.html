@@ -278,6 +278,136 @@
             font-weight: bold;
             display: inline-block;
             margin-right: 10px;
+            position: relative;
+        }
+        
+        .coupon-item {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .coupon-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .copy-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+        
+        .copy-btn:hover {
+            background: #5568d3;
+        }
+        
+        .copy-btn.copied {
+            background: #27ae60;
+        }
+        
+        .usage-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .usage-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .stat-success {
+            color: #27ae60;
+        }
+        
+        .stat-fail {
+            color: #e74c3c;
+        }
+        
+        .report-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+        
+        .report-btn:hover {
+            background: #2980b9;
+        }
+        
+        .view-reports-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        
+        .view-reports-btn:hover {
+            background: #7f8c8d;
+        }
+        
+        .report-form {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            display: none;
+        }
+        
+        .report-form.active {
+            display: block;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .usage-report {
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-size: 0.85em;
+        }
+        
+        .report-success {
+            border-left: 3px solid #27ae60;
+        }
+        
+        .report-fail {
+            border-left: 3px solid #e74c3c;
         }
 
         .country-list {
@@ -355,6 +485,46 @@
 
         .link:hover {
             text-decoration: underline;
+        }
+        
+        .detail-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .detail-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .detail-section p {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        
+        details {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0;
+        }
+        
+        details summary {
+            user-select: none;
+            outline: none;
+            transition: background 0.2s;
+        }
+        
+        details summary:hover {
+            background: #ebebeb;
+        }
+        
+        details[open] summary {
+            border-bottom: 2px solid #e0e0e0;
         }
     </style>
 </head>
@@ -801,14 +971,72 @@
                     
                     document.getElementById('detailStoreName').textContent = store.name;
                     
+                    // Format timestamps
+                    const formatDate = (timestamp) => {
+                        if (!timestamp) return 'N/A';
+                        const date = new Date(timestamp);
+                        return date.toLocaleString();
+                    };
+                    
                     let html = `
-                        <div style="margin-bottom: 20px;">
+                        <div class="detail-section">
                             <h3>Basic Information</h3>
+                            <p><strong>Store ID:</strong> ${store.store_id}</p>
+                            <p><strong>Label:</strong> ${store.label || 'N/A'}</p>
                             <p><strong>Domain:</strong> ${store.domain}</p>
                             <p><strong>URL:</strong> <a href="${store.url}" target="_blank">${store.url}</a></p>
+                            ${store.logo_url ? `<p><strong>Logo:</strong> <img src="${store.logo_url}" style="height: 40px; vertical-align: middle;"></p>` : ''}
                             <p><strong>Country:</strong> ${store.country}</p>
-                            <p><strong>Status:</strong> ${store.active ? '✅ Active' : '❌ Inactive'}</p>
+                            <p><strong>Status:</strong> ${store.active ? '✅ Active' : '❌ Inactive'} / ${store.supported ? '✅ Supported' : '❌ Not Supported'}</p>
+                            ${store.support_stage ? `<p><strong>Support Stage:</strong> ${store.support_stage}</p>` : ''}
+                            ${store.launchpad_pathname ? `<p><strong>Launchpad Path:</strong> ${store.launchpad_pathname}</p>` : ''}
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>📊 Shopper Statistics</h3>
+                            <p><strong>24-hour Shoppers:</strong> ${(store.shoppers_24h || 0).toLocaleString()}</p>
                             <p><strong>30-day Shoppers:</strong> ${(store.shoppers_30d || 0).toLocaleString()}</p>
+                            <p><strong>Shoppers Change:</strong> ${store.shoppers_change > 0 ? '↑' : store.shoppers_change < 0 ? '↓' : '→'} ${Math.abs(store.shoppers_change || 0).toLocaleString()}</p>
+                            ${store.score ? `<p><strong>Store Score:</strong> ${store.score.toLocaleString()}</p>` : ''}
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>💰 Savings Statistics</h3>
+                            <p><strong>24h Savings Count:</strong> ${(store.num_savings_24h || 0).toLocaleString()}</p>
+                            <p><strong>30d Savings Count:</strong> ${(store.num_savings_30d || 0).toLocaleString()}</p>
+                            <p><strong>Avg 24h Savings:</strong> ${store.avg_savings_24h ? '$' + store.avg_savings_24h.toFixed(2) : 'N/A'}</p>
+                            <p><strong>Avg 30d Savings:</strong> ${store.avg_savings_30d ? '$' + store.avg_savings_30d.toFixed(2) : 'N/A'}</p>
+                            ${store.free_shipping_threshold ? `<p><strong>Free Shipping Threshold:</strong> $${store.free_shipping_threshold.toFixed(2)}</p>` : ''}
+                        </div>
+                        
+                        <div class="detail-section">
+                            <h3>🕐 Timestamps</h3>
+                            <p><strong>Created:</strong> ${formatDate(store.created)}</p>
+                            <p><strong>Last Updated:</strong> ${formatDate(store.updated)}</p>
+                            ${store.checked ? `<p><strong>Last Checked:</strong> ${formatDate(store.checked)}</p>` : ''}
+                        </div>
+                        
+                        ${store.notes_support || store.notes_monetization || store.notes_worker ? `
+                        <div class="detail-section">
+                            <h3>📝 Notes</h3>
+                            ${store.notes_support ? `<p><strong>Support Notes:</strong> ${store.notes_support}</p>` : ''}
+                            ${store.notes_monetization ? `<p><strong>Monetization Notes:</strong> ${store.notes_monetization}</p>` : ''}
+                            ${store.notes_worker ? `<p><strong>Worker Notes:</strong> ${store.notes_worker}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        ${store.affiliate_url || store.affiliate_restrictions ? `
+                        <div class="detail-section">
+                            <h3>🔗 Affiliate Information</h3>
+                            ${store.affiliate_url ? `<p><strong>Affiliate URL:</strong> <a href="${store.affiliate_url}" target="_blank">${store.affiliate_url}</a></p>` : ''}
+                            ${store.affiliate_restrictions ? `<p><strong>Restrictions:</strong> ${store.affiliate_restrictions}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div class="detail-section">
+                            <h3>⚙️ Technical Settings</h3>
+                            <p><strong>UGC Allowed:</strong> ${store.ugc_allowed ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Force JS Redirect:</strong> ${store.force_js_redirect ? '✅ Yes' : '❌ No'}</p>
                         </div>
                     `;
                     
@@ -816,16 +1044,108 @@
                         html += `<div style="margin-bottom: 20px;">
                             <h3>Coupons (${coupons.length})</h3>`;
                         coupons.forEach(coupon => {
-                            html += `<div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                                <span class="coupon-code">${coupon.code}</span>
-                                <span>${coupon.description || 'No description'}</span>
+                            const successRate = coupon.usage_report_count > 0 
+                                ? Math.round((coupon.worked_count / coupon.usage_report_count) * 100) 
+                                : null;
+                            
+                            html += `<div class="coupon-item" id="coupon-${coupon.id}">
+                                <div class="coupon-header">
+                                    <span class="coupon-code" id="code-${coupon.id}">${coupon.code}</span>
+                                    <button class="copy-btn" onclick="copyCouponCode('${coupon.code}', ${coupon.id})">
+                                        📋 Copy
+                                    </button>
+                                    <button class="report-btn" onclick="toggleReportForm(${coupon.id}, '${store.store_id}', '${coupon.code}')">
+                                        ✍️ Report Usage
+                                    </button>
+                                    ${coupon.usage_report_count > 0 ? `
+                                        <button class="view-reports-btn" onclick="viewUsageReports(${coupon.id}, '${coupon.code}')">
+                                            📊 View ${coupon.usage_report_count} Report${coupon.usage_report_count > 1 ? 's' : ''}
+                                        </button>
+                                    ` : ''}
+                                </div>
+                                <div>${coupon.description || 'No description'}</div>
+                                
+                                ${coupon.usage_report_count > 0 ? `
+                                    <div class="usage-stats">
+                                        <div class="usage-stat">
+                                            <strong>User Reports:</strong> ${coupon.usage_report_count}
+                                        </div>
+                                        ${successRate !== null ? `
+                                            <div class="usage-stat">
+                                                <strong>Success Rate:</strong> 
+                                                <span class="${successRate >= 50 ? 'stat-success' : 'stat-fail'}">
+                                                    ${successRate}%
+                                                </span>
+                                            </div>
+                                        ` : ''}
+                                        <div class="usage-stat stat-success">
+                                            ✓ Worked: ${coupon.worked_count || 0}
+                                        </div>
+                                        <div class="usage-stat stat-fail">
+                                            ✗ Failed: ${coupon.failed_count || 0}
+                                        </div>
+                                        ${coupon.avg_savings ? `
+                                            <div class="usage-stat">
+                                                <strong>Avg Savings:</strong> $${coupon.avg_savings.toFixed(2)}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="report-form" id="report-form-${coupon.id}">
+                                    <h4>Report Usage for ${coupon.code}</h4>
+                                    <div class="form-row">
+                                        <select id="worked-${coupon.id}">
+                                            <option value="1">✓ Worked</option>
+                                            <option value="0">✗ Didn't Work</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-row">
+                                        <input type="number" step="0.01" placeholder="Amount Saved (optional)" id="saved-${coupon.id}">
+                                        <input type="number" step="0.01" placeholder="Amount Spent (optional)" id="spent-${coupon.id}">
+                                    </div>
+                                    <div class="form-row">
+                                        <textarea placeholder="Notes (optional)" rows="2" id="notes-${coupon.id}"></textarea>
+                                    </div>
+                                    <button class="btn btn-success" onclick="submitUsageReport(${coupon.id}, '${store.store_id}', '${coupon.code}')">
+                                        Submit Report
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="toggleReportForm(${coupon.id})">
+                                        Cancel
+                                    </button>
+                                </div>
+                                
                                 <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
-                                    Applied: ${coupon.applied_acc_count || 0} times
+                                    Applied by Honey users: ${coupon.applied_acc_count || 0} times
                                 </div>
                             </div>`;
                         });
                         html += '</div>';
+                    } else {
+                        html += '<p style="color: #666; margin: 20px 0;">No coupons available for this store.</p>';
                     }
+                    
+                    // Add raw data section
+                    html += `
+                        <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
+                            <details style="cursor: pointer;">
+                                <summary style="font-weight: bold; font-size: 1.1em; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+                                    🔍 Advanced: View Raw Metadata
+                                </summary>
+                                <div style="margin-top: 15px;">
+                                    ${store.metadata ? `
+                                        <h4>Store Metadata</h4>
+                                        <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 0.85em; max-height: 400px;">${JSON.stringify(JSON.parse(store.metadata), null, 2)}</pre>
+                                    ` : ''}
+                                    
+                                    ${store.raw_json ? `
+                                        <h4 style="margin-top: 20px;">Complete Raw JSON Response</h4>
+                                        <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 0.85em; max-height: 400px;">${JSON.stringify(JSON.parse(store.raw_json), null, 2)}</pre>
+                                    ` : '<p style="color: #999;">No raw JSON data available.</p>'}
+                                </div>
+                            </details>
+                        </div>
+                    `;
                     
                     document.getElementById('detailContent').innerHTML = html;
                     document.getElementById('detailModal').classList.add('active');
@@ -850,6 +1170,126 @@
             container.appendChild(alert);
             
             setTimeout(() => alert.remove(), 5000);
+        }
+        
+        function copyCouponCode(code, couponId) {
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector(`#coupon-${couponId} .copy-btn`);
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '✓ Copied!';
+                btn.classList.add('copied');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+                
+                showAlert(`Coupon code "${code}" copied to clipboard!`, 'success');
+            }).catch(err => {
+                showAlert('Failed to copy code', 'error');
+            });
+        }
+        
+        function toggleReportForm(couponId, storeId = null, code = null) {
+            const form = document.getElementById(`report-form-${couponId}`);
+            form.classList.toggle('active');
+            
+            // Reset form if closing
+            if (!form.classList.contains('active')) {
+                document.getElementById(`worked-${couponId}`).value = '1';
+                document.getElementById(`saved-${couponId}`).value = '';
+                document.getElementById(`spent-${couponId}`).value = '';
+                document.getElementById(`notes-${couponId}`).value = '';
+            }
+        }
+        
+        async function submitUsageReport(couponId, storeId, code) {
+            const worked = document.getElementById(`worked-${couponId}`).value === '1';
+            const amountSaved = parseFloat(document.getElementById(`saved-${couponId}`).value) || null;
+            const amountSpent = parseFloat(document.getElementById(`spent-${couponId}`).value) || null;
+            const notes = document.getElementById(`notes-${couponId}`).value || null;
+            
+            try {
+                const response = await fetch('/api/coupon/report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        coupon_id: couponId,
+                        store_id: storeId,
+                        code: code,
+                        worked: worked,
+                        amount_saved: amountSaved,
+                        amount_spent: amountSpent,
+                        notes: notes
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`Usage report submitted successfully! ${worked ? '✓ Worked' : '✗ Didn\'t work'}`, 'success');
+                    toggleReportForm(couponId);
+                    
+                    // Refresh store details to show updated stats
+                    setTimeout(() => showStoreDetail(storeId), 500);
+                } else {
+                    showAlert('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Error submitting report: ' + error.message, 'error');
+            }
+        }
+        
+        async function viewUsageReports(couponId, code) {
+            try {
+                const response = await fetch(`/api/coupon/${couponId}/usage`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showUsageReportsModal(code, data.reports);
+                } else {
+                    showAlert('Error loading reports', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+        
+        function showUsageReportsModal(code, reports) {
+            let html = `<h3>Usage Reports for ${code}</h3>`;
+            
+            if (reports.length === 0) {
+                html += '<p>No usage reports yet.</p>';
+            } else {
+                html += `<p style="color: #666; margin-bottom: 15px;">Total reports: ${reports.length}</p>`;
+                
+                reports.forEach(report => {
+                    const date = new Date(report.reported_at);
+                    const dateStr = date.toLocaleString();
+                    
+                    html += `<div class="usage-report ${report.worked ? 'report-success' : 'report-fail'}">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <strong>${report.worked ? '✓ Worked' : '✗ Didn\'t Work'}</strong>
+                            <span style="color: #666; font-size: 0.9em;">${dateStr}</span>
+                        </div>`;
+                    
+                    if (report.amount_saved) {
+                        html += `<div>💰 Saved: $${parseFloat(report.amount_saved).toFixed(2)}</div>`;
+                    }
+                    if (report.amount_spent) {
+                        html += `<div>🛒 Spent: $${parseFloat(report.amount_spent).toFixed(2)}</div>`;
+                    }
+                    if (report.notes) {
+                        html += `<div style="margin-top: 5px; font-style: italic;">"${report.notes}"</div>`;
+                    }
+                    
+                    html += '</div>';
+                });
+            }
+            
+            document.getElementById('detailStoreName').textContent = `Usage Reports: ${code}`;
+            document.getElementById('detailContent').innerHTML = html;
+            document.getElementById('detailModal').classList.add('active');
         }
     </script>
 </body>

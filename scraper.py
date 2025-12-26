@@ -120,12 +120,32 @@ class HoneyScraper:
             )
         """)
         
+        # Create coupon usage reports table (user-generated data)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS coupon_usage_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                coupon_id INTEGER NOT NULL,
+                store_id TEXT NOT NULL,
+                code TEXT NOT NULL,
+                worked INTEGER NOT NULL,
+                amount_saved REAL,
+                amount_spent REAL,
+                notes TEXT,
+                reported_at INTEGER NOT NULL,
+                FOREIGN KEY (coupon_id) REFERENCES coupons(id),
+                FOREIGN KEY (store_id) REFERENCES stores(store_id)
+            )
+        """)
+        
         # Create indices for better query performance
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_domain ON stores(domain)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_country ON stores(country)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_active ON stores(active)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_coupons_store ON coupons(store_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_partial_urls_store ON partial_urls(store_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_reports_coupon ON coupon_usage_reports(coupon_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_reports_store ON coupon_usage_reports(store_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_usage_reports_code ON coupon_usage_reports(code)")
         
         conn.commit()
         conn.close()

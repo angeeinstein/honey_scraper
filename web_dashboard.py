@@ -393,8 +393,20 @@ def api_store_detail(store_id):
         
         store = dict(store_row)
         
-        # Get coupons
-        cursor.execute("SELECT * FROM coupons WHERE store_id = ? ORDER BY created DESC", (store_id,))
+        # Get coupons with usage stats
+        cursor.execute("""
+            SELECT 
+                c.*,
+                COUNT(r.id) as usage_report_count,
+                SUM(CASE WHEN r.worked = 1 THEN 1 ELSE 0 END) as worked_count,
+                SUM(CASE WHEN r.worked = 0 THEN 1 ELSE 0 END) as failed_count,
+                AVG(CASE WHEN r.worked = 1 THEN r.amount_saved END) as avg_savings
+            FROM coupons c
+            LEFT JOIN coupon_usage_reports r ON c.id = r.coupon_id
+            WHERE c.store_id = ?
+            GROUP BY c.id
+            ORDER BY c.created DESC
+        """, (store_id,))
         coupons = [dict(row) for row in cursor.fetchall()]
         
         # Get partial URLs
@@ -416,6 +428,65 @@ def api_store_detail(store_id):
             'coupons': coupons,
             'partial_urls': partial_urls
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/coupon/<int:coupon_id>/usage')
+def api_coupon_usage(coupon_id):
+    """Get usage reports for a coupon"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM coupon_usage_reports
+            WHERE coupon_id = ?
+            ORDER BY reported_at DESC
+        """, (coupon_id,))
+        
+        reports = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return jsonify({'success': True, 'reports': reports})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/coupon/report', methods=['POST'])
+def api_report_coupon_usage():
+    """Report coupon usage"""
+    try:
+        data = request.json
+        
+        required = ['coupon_id', 'store_id', 'code', 'worked']
+        if not all(k in data for k in required):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO coupon_usage_reports (
+                coupon_id, store_id, code, worked, amount_saved, 
+                amount_spent, notes, reported_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['coupon_id'],
+            data['store_id'],
+            data['code'],
+            1 if data['worked'] else 0,
+            data.get('amount_saved'),
+            data.get('amount_spent'),
+            data.get('notes'),
+            int(time.time() * 1000)
+        ))
+        
+        conn.commit()
+        report_id = cursor.lastrowid
+        conn.close()
+        
+        return jsonify({'success': True, 'report_id': report_id})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
